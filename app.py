@@ -5,15 +5,25 @@ import time
 import plotly.express as px
 from datetime import datetime, timedelta
 import requests
+import json
 
 # ==============================================================================
-# ⚙️ CONFIGURAÇÃO E VISUAL
+# ⚙️ CONFIGURAÇÕES DA IA (CLOUDFLARE)
+# ==============================================================================
+# Chefe, futuramente coloque isso no secrets.toml para segurança, mas tá na mão:
+CF_ACCOUNT_ID = "3baa994dde65370e4085dc8d4ac1e931"
+CF_API_TOKEN = "u7UM4xsGySrcEFveL1ah8vi4MdhdwuLOUlekJabC"
+CF_MODELO = "@cf/meta/llama-3.1-8b-instruct"
+CF_URL = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{CF_MODELO}"
+CF_HEADERS = {
+    "Authorization": f"Bearer {CF_API_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+# ==============================================================================
+# ⚙️ VISUAL E ESTILO
 # ==============================================================================
 st.set_page_config(page_title="Nexus Manager", page_icon="🚀", layout="wide")
-
-# URL do Webhook do n8n (Aquele que criamos para a Auditoria IA)
-# Chefe, troque pelo seu link de produção do n8n quando estiver pronto
-N8N_WEBHOOK_URL = "https://olympikusdevs.app.n8n.cloud/webhook-test/auditoria-saas"
 
 st.markdown("""
 <style>
@@ -24,7 +34,7 @@ st.markdown("""
     [data-testid="stSidebar"] { background-color: #111827; }
     [data-testid="stSidebar"] * { color: #E5E7EB !important; }
     
-    /* Cards brancos com sombra suave */
+    /* Cards brancos */
     .card-box {
         background-color: white;
         padding: 24px;
@@ -32,10 +42,6 @@ st.markdown("""
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         margin-bottom: 20px;
     }
-    
-    /* Títulos */
-    h1, h2, h3 { color: #111827; font-weight: 700; }
-    .stMarkdown h3 { margin-top: 0; }
     
     /* Métricas */
     .metric-container {
@@ -45,32 +51,30 @@ st.markdown("""
         border-radius: 8px;
         border: 1px solid #E5E7EB;
     }
-    .metric-label { font-size: 0.85rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; }
+    .metric-label { font-size: 0.85rem; color: #6B7280; text-transform: uppercase; }
     .metric-value { font-size: 1.8rem; font-weight: 800; color: #111827; margin-top: 5px; }
-    .metric-highlight { color: #2563EB; } /* Azul Royal */
+    .metric-highlight { color: #2563EB; } 
     
     /* Botões */
     .stButton button {
-        border-radius: 8px; font-weight: 600; padding: 0.5rem 1rem;
+        border-radius: 8px; font-weight: 600;
         background-color: #2563EB; color: white; border: none;
-        transition: all 0.2s;
     }
-    .stButton button:hover { background-color: #1D4ED8; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+    .stButton button:hover { background-color: #1D4ED8; }
     
     /* Inputs */
-    .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput input {
-        border-radius: 8px; border: 1px solid #D1D5DB; color: #1F2937; background-color: white;
+    .stTextInput input, .stNumberInput input, .stSelectbox {
+        border-radius: 8px; border: 1px solid #D1D5DB;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🔌 CONEXÃO E FUNÇÕES ÚTEIS
+# 🔌 CONEXÃO SUPABASE
 # ==============================================================================
 @st.cache_resource
 def init_connection():
     try:
-        # Chefe, se não tiver secrets.toml, ele tenta pegar direto daqui (backup)
         url = st.secrets.get("SUPABASE_URL", "https://dhihqmxjclyrqkbxshtv.supabase.co")
         key = st.secrets.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRoaWhxbXhqY2x5cnFrYnhzaHR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0NTE4MDgsImV4cCI6MjA3ODAyNzgwOH0.jD0RhVMTDHc4Ch9vV_PQ2OlBfyei-PA7VmvEJ1IWi3w")
         if not url or not key: return None
@@ -85,7 +89,7 @@ def get_data(table, order_col='created_at'):
         res = supabase.table(table).select("*").order(order_col, desc=True).execute()
         df = pd.DataFrame(res.data)
         
-        # Ajuste de datas e fuso
+        # Tratamento de datas
         cols_date = ['created_at', 'data_expiracao']
         for col in cols_date:
             if not df.empty and col in df.columns:
@@ -96,9 +100,8 @@ def get_data(table, order_col='created_at'):
         
         if not df.empty and 'created_at' in df.columns:
              df['created_at'] = df['created_at'] - timedelta(hours=3)
-             
         return df
-    except Exception: return pd.DataFrame()
+    except: return pd.DataFrame()
 
 def card_metric(label, value, color_class=""):
     st.markdown(f"""
@@ -117,6 +120,50 @@ def check_status(data_exp):
     return "Ativo", "#10B981"
 
 # ==============================================================================
+# 🧠 FUNÇÃO IA (CLOUDFLARE)
+# ==============================================================================
+def gerar_relatorio_ia(df_afiliados, df_vendas):
+    # Prepara resumo dos dados para não estourar tokens
+    resumo_afiliados = []
+    
+    if not df_afiliados.empty:
+        for _, row in df_afiliados.iterrows():
+            vendas_af = df_vendas[df_vendas['cupom'] == row['cupom']] if not df_vendas.empty else pd.DataFrame()
+            resumo_afiliados.append({
+                "nome": row['nome'],
+                "cupom": row['cupom'],
+                "total_vendas": len(vendas_af),
+                "faturamento_gerado": vendas_af['valor_plano'].sum() if not vendas_af.empty else 0
+            })
+    
+    dados_texto = json.dumps(resumo_afiliados, ensure_ascii=False)
+    
+    prompt_sistema = """
+    Você é um Consultor Sênior de um SaaS. Analise os dados dos afiliados e dê um feedback executivo para o dono.
+    1. Identifique o TOP performer (quem vendeu mais).
+    2. Identifique quem está com performance baixa (zero vendas ou muito pouco).
+    3. Dê uma nota de 0 a 10 para a saúde comercial atual.
+    4. Seja breve, use Markdown (negrito, tópicos).
+    """
+    
+    payload = {
+        "messages": [
+            {"role": "system", "content": prompt_sistema},
+            {"role": "user", "content": f"Analise estes dados brutos: {dados_texto}"}
+        ]
+    }
+    
+    try:
+        response = requests.post(CF_URL, headers=CF_HEADERS, json=payload)
+        if response.status_code == 200:
+            result = response.json()
+            return result.get('result', {}).get('response', "IA não retornou texto.")
+        else:
+            return f"Erro na API Cloudflare: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Erro técnico na requisição: {e}"
+
+# ==============================================================================
 # 🔐 LOGIN
 # ==============================================================================
 if 'logged_in' not in st.session_state: 
@@ -125,7 +172,7 @@ if 'logged_in' not in st.session_state:
 def login_ui():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
-        st.markdown("<br><br><h1 style='text-align: center;'>Nexus Manager</h1>", unsafe_allow_html=True)
+        st.markdown("<br><h1 style='text-align: center;'>Nexus Manager</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #6B7280;'>Sistema Integrado de Gestão</p><br>", unsafe_allow_html=True)
         
         with st.container():
@@ -145,7 +192,6 @@ def login_ui():
             with tab_adm:
                 senha = st.text_input("Senha Administrativa", type="password")
                 if st.button("Entrar Admin", use_container_width=True):
-                    # Chefe, senha hardcoded aqui conforme seu pedido anterior
                     senha_admin = st.secrets.get("ADMIN_PASSWORD", "170905@Ju")
                     if senha == senha_admin:
                         st.session_state.update({'logged_in': True, 'role': 'admin'})
@@ -165,7 +211,7 @@ def admin_panel():
             st.session_state.clear()
             st.rerun()
 
-    # Carrega dados frescos
+    # Carrega dados
     df_vendas = get_data('vendas')
     df_afiliados = get_data('afiliados')
     df_saques = get_data('saques')
@@ -193,32 +239,30 @@ def admin_panel():
         with c3: card_metric("Comissões Pagas", f"R$ {comissoes:,.0f}")
         with c4: card_metric("Lucro Líquido", f"R$ {lucro:,.0f}", "metric-highlight")
 
-        # Integração n8n (Auditoria IA)
+        # --- ÁREA DE INTELIGÊNCIA ARTIFICIAL ---
         st.markdown("---")
-        st.subheader("🤖 IA Advisor - Raio-X da Operação")
+        st.subheader("🤖 IA Cloudflare - Raio-X da Operação")
         
         col_ia_1, col_ia_2 = st.columns([1, 3])
         with col_ia_1:
-             if st.button("⚡ Gerar Relatório de Inteligência"):
-                with st.spinner("Conectando ao n8n e analisando dados..."):
-                    try:
-                        # Se a URL não estiver definida (teste local), avisa
-                        if "seu-n8n" in N8N_WEBHOOK_URL:
-                             st.warning("Configure a URL do Webhook no código para funcionar.")
-                        else:
-                            resp = requests.post(N8N_WEBHOOK_URL)
-                            if resp.status_code == 200:
-                                dados_ia = resp.json()
-                                msg_ia = dados_ia.get("relatorio", "Análise concluída, mas sem texto de retorno.")
-                                st.success("Análise recebida com sucesso!")
-                                with col_ia_2:
-                                    st.info(msg_ia)
-                            else:
-                                st.error("Erro ao conectar com o n8n.")
-                    except Exception as e:
-                        st.error(f"Erro técnico: {e}")
+             st.info("Modelo: Llama 3.1 8B")
+             if st.button("⚡ Gerar Relatório Agora", use_container_width=True):
+                with st.spinner("Consultando Llama 3 na Cloudflare..."):
+                    relatorio = gerar_relatorio_ia(df_afiliados, df_vendas)
+                    if "Erro" not in relatorio:
+                        st.session_state['last_report'] = relatorio
+                        st.success("Análise concluída!")
+                    else:
+                        st.error(relatorio)
+        
+        with col_ia_2:
+            if 'last_report' in st.session_state:
+                st.markdown(st.session_state['last_report'])
+            else:
+                st.markdown("*O relatório de inteligência aparecerá aqui após clicar no botão.*")
 
         # Gráfico
+        st.markdown("---")
         st.markdown("### Evolução Diária")
         if not df_filt.empty:
             daily = df_filt.groupby(df_filt['created_at'].dt.date)['valor_plano'].sum().reset_index()
@@ -264,8 +308,7 @@ def admin_panel():
                         st.success("Removido.")
                         time.sleep(1)
                         st.rerun()
-            else:
-                st.info("Nenhum parceiro cadastrado.")
+            else: st.info("Nenhum parceiro cadastrado.")
             st.markdown('</div>', unsafe_allow_html=True)
 
         with c2:
@@ -333,7 +376,6 @@ def admin_panel():
             
             for i, row in df_show.iterrows():
                 status_txt, status_cor = check_status(row['data_expiracao']) if 'data_expiracao' in row else ("-", "gray")
-                
                 with st.container():
                     c = st.columns([1, 2, 2, 2, 2, 1])
                     c[0].write(f"#{row['id']}")
@@ -346,8 +388,7 @@ def admin_panel():
                         supabase.table("vendas").delete().eq("id", row['id']).execute()
                         st.rerun()
                 st.divider()
-        else:
-            st.info("Sem clientes.")
+        else: st.info("Sem clientes.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # --- 4. FINANCEIRO ---
@@ -365,19 +406,16 @@ def admin_panel():
                     with st.container():
                         pc = st.columns([3, 1, 1])
                         pc[0].markdown(f"**{row['cupom']}** solicitou **R$ {row['valor']:.2f}**<br><span style='font-size:12px;color:grey'>Chave: {row.get('comprovante', '-')}</span>", unsafe_allow_html=True)
-                        
                         if pc[1].button("✅ Pagar", key=f"pay_{row['id']}"):
                             supabase.table("saques").update({"status": "Pago"}).eq("id", row['id']).execute()
                             st.success("Pago!")
                             time.sleep(0.5)
                             st.rerun()
-                            
                         if pc[2].button("❌ Negar", key=f"deny_{row['id']}"):
                             supabase.table("saques").update({"status": "Rejeitado"}).eq("id", row['id']).execute()
                             st.rerun()
                         st.divider()
-            else:
-                st.info("Nenhuma solicitação de saque pendente.")
+            else: st.info("Nenhuma solicitação de saque pendente.")
             st.markdown('</div>', unsafe_allow_html=True)
 
         with c2:
@@ -438,8 +476,7 @@ def affiliate_panel():
                     st.success("Solicitação enviada!")
                     time.sleep(1)
                     st.rerun()
-                else:
-                    st.warning("Preencha valor e PIX.")
+                else: st.warning("Preencha valor e PIX.")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("### Meus Clientes")
@@ -454,24 +491,15 @@ def affiliate_panel():
                     "Comissão": f"R$ {r['valor_comissao']:.2f}"
                 })
             st.dataframe(pd.DataFrame(display_cli), hide_index=True, use_container_width=True)
-        else:
-            st.info("Você ainda não possui vendas ativas.")
+        else: st.info("Você ainda não possui vendas ativas.")
 
     elif nav == "Material de Apoio":
         st.title("📢 Marketing & Arquivos")
-        
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown("""
-        ### Acesso ao Drive
-        Aqui você encontra banners, textos prontos (copys) e vídeos para divulgar nas redes sociais.
-        """)
-        
-        link_drive = "https://drive.google.com/" 
-        st.link_button("📂 Acessar Pasta do Google Drive", link_drive, use_container_width=True)
-        
+        st.markdown("### Acesso ao Drive")
+        st.link_button("📂 Acessar Pasta do Google Drive", "https://drive.google.com/", use_container_width=True)
         st.divider()
         st.markdown("#### Link Rápido de Venda")
-        st.caption("Envie este link para o cliente iniciar a conversa já com seu cupom:")
         texto_zap = f"Olá, gostaria de contratar com o cupom {cupom}"
         link_zap = f"https://wa.me/5511999999999?text={texto_zap.replace(' ', '%20')}"
         st.code(link_zap)
