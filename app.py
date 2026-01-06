@@ -652,11 +652,11 @@ def affiliate_panel():
         st.title("📢 Marketing & Arquivos")
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
         st.markdown("### Acesso ao Drive")
-        st.link_button("📂 Acessar Pasta do Google Drive", "https://drive.google.com/", use_container_width=True)
+        st.link_button("📂 Acessar Pasta do Google Drive", "https://drive.google.com/drive/folders/1-xpVoGJFG8wfjtmq9YAqWYdEw6IocNLs?usp=drive_link", use_container_width=True)
         st.divider()
         st.markdown("#### Link Rápido de Venda")
         texto_zap = f"Olá, gostaria de contratar com o cupom {cupom}"
-        link_zap = f"https://wa.me/5511999999999?text={texto_zap.replace(' ', '%20')}"
+        link_zap = f"https://wa.me/seunumero?text={texto_zap.replace(' ', '%20')}"
         st.code(link_zap)
         st.markdown('</div>', unsafe_allow_html=True)
 
