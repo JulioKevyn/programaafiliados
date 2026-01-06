@@ -23,7 +23,7 @@ CF_HEADERS = {
 # ==============================================================================
 # ⚙️ VISUAL E ESTILO
 # ==============================================================================
-st.set_page_config(page_title="Nexus Manager", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Olympikus Manager", page_icon="🚀", layout="wide")
 
 st.markdown("""
 <style>
@@ -172,7 +172,7 @@ if 'logged_in' not in st.session_state:
 def login_ui():
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
-        st.markdown("<br><h1 style='text-align: center;'>Nexus Manager</h1>", unsafe_allow_html=True)
+        st.markdown("<br><h1 style='text-align: center;'>Olympikus Manager</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #6B7280;'>Sistema Integrado de Gestão</p><br>", unsafe_allow_html=True)
         
         with st.container():
