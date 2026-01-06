@@ -6,91 +6,82 @@ from datetime import datetime, timedelta
 import time
 
 # ==============================================================================
-# ⚙️ CONFIG
+# CONFIG
 # ==============================================================================
-st.set_page_config(
-    page_title="OLYMPIKUS IPTV",
-    page_icon="⚡",
-    layout="wide"
-)
+st.set_page_config("OLYMPIKUS IPTV", "⚡", layout="wide")
 
 # ==============================================================================
-# 🎨 TEMA PREMIUM
+# THEME
 # ==============================================================================
 st.markdown("""
 <style>
-.stApp { background-color:#0B0F1A; color:#E6EDF3; }
-header, footer { visibility:hidden; }
+.stApp { background:#0B0F1A; color:#E6EDF3; }
+header, footer { display:none; }
 
-h1,h2,h3 { font-weight:700; }
+.sidebar { background:#0E1426; }
 
-.kpi {
+.card {
     background:#12182B;
-    border-radius:14px;
-    padding:22px;
-    text-align:center;
     border:1px solid #1F2A44;
+    border-radius:14px;
+    padding:20px;
 }
-.kpi-title { color:#8B949E; font-size:12px; text-transform:uppercase; }
-.kpi-value { font-size:30px; font-weight:800; margin-top:5px; }
+.card h3 { margin:0; font-size:13px; color:#8B949E; }
+.card h1 { margin:5px 0 0 0; }
 
 .blue { color:#2F81F7; }
 .green { color:#3FB950; }
 .gold { color:#F5C542; }
+.red { color:#F85149; }
 
 .stButton button {
     background:#2F81F7;
-    border:none;
-    font-weight:700;
     border-radius:8px;
-}
-.stButton button:hover { background:#1F6FEB; }
-
-[data-testid="stDataFrame"] {
-    border-radius:12px;
-    border:1px solid #1F2A44;
+    font-weight:700;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🔌 SUPABASE
+# DATABASE
 # ==============================================================================
 @st.cache_resource
-def init_db():
+def db():
     return create_client(
         st.secrets["SUPABASE_URL"],
         st.secrets["SUPABASE_KEY"]
     )
 
-db = init_db()
+supabase = db()
 
 def load(table):
-    res = db.table(table).select("*").execute()
-    df = pd.DataFrame(res.data)
+    r = supabase.table(table).select("*").execute()
+    df = pd.DataFrame(r.data)
     if "created_at" in df.columns:
         df["created_at"] = pd.to_datetime(df["created_at"]) - timedelta(hours=3)
     return df
 
 # ==============================================================================
-# 🔐 LOGIN
+# AUTH STATE
 # ==============================================================================
 if "auth" not in st.session_state:
     st.session_state.auth = False
     st.session_state.role = None
     st.session_state.user = None
 
+# ==============================================================================
+# LOGIN
+# ==============================================================================
 def login():
     st.markdown("<h1 style='text-align:center'>⚡ OLYMPIKUS IPTV</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center;color:#8B949E'>Sistema Profissional de Gestão</p>", unsafe_allow_html=True)
-    st.markdown("----")
 
     tab1, tab2 = st.tabs(["🤝 Afiliado", "🛡 Admin"])
 
     with tab1:
         cupom = st.text_input("Cupom").upper()
         if st.button("Entrar"):
-            r = db.table("afiliados").select("*").eq("cupom", cupom).execute()
+            r = supabase.table("afiliados").select("*").eq("cupom", cupom).execute()
             if r.data:
                 st.session_state.auth = True
                 st.session_state.role = "afiliado"
@@ -101,7 +92,7 @@ def login():
 
     with tab2:
         senha = st.text_input("Senha Master", type="password")
-        if st.button("Acessar Admin"):
+        if st.button("Entrar como Admin"):
             if senha == st.secrets["ADMIN_PASSWORD"]:
                 st.session_state.auth = True
                 st.session_state.role = "admin"
@@ -110,45 +101,40 @@ def login():
                 st.error("Senha incorreta")
 
 # ==============================================================================
-# 🛡 ADMIN DASHBOARD
+# ADMIN DASHBOARD
 # ==============================================================================
 def admin():
     vendas = load("vendas")
     afiliados = load("afiliados")
 
     ativos = vendas[vendas.status == "Ativo"]
+    cancelados = vendas[vendas.status == "Cancelado"]
+
     faturamento = ativos.valor_plano.sum()
-    comissoes = ativos.valor_comissao.sum()
+    comissao = ativos.valor_comissao.sum()
+    lucro = faturamento - comissao
 
-    c1,c2,c3,c4 = st.columns(4)
-    c1.markdown(f"<div class='kpi'><div class='kpi-title'>Vendas</div><div class='kpi-value blue'>{len(vendas)}</div></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='kpi'><div class='kpi-title'>Ativos</div><div class='kpi-value green'>{len(ativos)}</div></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='kpi'><div class='kpi-title'>Faturamento</div><div class='kpi-value'>R$ {faturamento:.0f}</div></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='kpi'><div class='kpi-title'>Lucro</div><div class='kpi-value gold'>R$ {faturamento - comissoes:.0f}</div></div>", unsafe_allow_html=True)
+    c1,c2,c3,c4,c5 = st.columns(5)
+    c1.markdown(f"<div class='card'><h3>Vendas</h3><h1>{len(vendas)}</h1></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='card'><h3>Ativos</h3><h1 class='green'>{len(ativos)}</h1></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='card'><h3>Cancelados</h3><h1 class='red'>{len(cancelados)}</h1></div>", unsafe_allow_html=True)
+    c4.markdown(f"<div class='card'><h3>Faturamento</h3><h1>R$ {faturamento:.0f}</h1></div>", unsafe_allow_html=True)
+    c5.markdown(f"<div class='card'><h3>Lucro</h3><h1 class='gold'>R$ {lucro:.0f}</h1></div>", unsafe_allow_html=True)
 
-    st.markdown("### 📈 Vendas por Dia")
+    st.markdown("### 📈 Receita por Dia")
     chart = ativos.groupby(ativos.created_at.dt.date)["valor_plano"].sum().reset_index()
-    st.plotly_chart(
-        px.line(chart, x="created_at", y="valor_plano", markers=True),
-        use_container_width=True
-    )
+    st.plotly_chart(px.bar(chart, x="created_at", y="valor_plano"), use_container_width=True)
 
     st.markdown("### 🏆 Ranking Afiliados")
     rank = ativos.groupby("cupom")["valor_comissao"].sum().reset_index().sort_values("valor_comissao", ascending=False)
     st.dataframe(rank, use_container_width=True)
-
-    st.download_button(
-        "📥 Exportar Vendas CSV",
-        vendas.to_csv(index=False),
-        "vendas_olympikus.csv"
-    )
 
     if st.sidebar.button("🚪 Sair"):
         st.session_state.auth = False
         st.rerun()
 
 # ==============================================================================
-# 🤝 AFILIADO DASHBOARD
+# AFILIADO DASHBOARD
 # ==============================================================================
 def afiliado():
     user = st.session_state.user
@@ -158,24 +144,26 @@ def afiliado():
     ativos = df[df.status == "Ativo"]
     saldo = ativos.valor_comissao.sum()
 
-    c1,c2 = st.columns(2)
-    c1.markdown(f"<div class='kpi'><div class='kpi-title'>Clientes</div><div class='kpi-value green'>{len(ativos)}</div></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='kpi'><div class='kpi-title'>Saldo</div><div class='kpi-value gold'>R$ {saldo:.2f}</div></div>", unsafe_allow_html=True)
+    c1,c2,c3 = st.columns(3)
+    c1.markdown(f"<div class='card'><h3>Vendas</h3><h1>{len(df)}</h1></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='card'><h3>Ativos</h3><h1 class='green'>{len(ativos)}</h1></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='card'><h3>Saldo</h3><h1 class='gold'>R$ {saldo:.2f}</h1></div>", unsafe_allow_html=True)
 
     st.markdown("### 📋 Minhas Vendas")
     st.dataframe(df, use_container_width=True)
+
+    st.markdown("### 📈 Evolução")
+    chart = ativos.groupby(ativos.created_at.dt.date)["valor_comissao"].sum().reset_index()
+    st.plotly_chart(px.line(chart, x="created_at", y="valor_comissao"), use_container_width=True)
 
     if st.sidebar.button("🚪 Sair"):
         st.session_state.auth = False
         st.rerun()
 
 # ==============================================================================
-# 🚦 ROUTER
+# ROUTER
 # ==============================================================================
 if not st.session_state.auth:
     login()
 else:
-    if st.session_state.role == "admin":
-        admin()
-    else:
-        afiliado()
+    admin() if st.session_state.role == "admin" else afiliado()
