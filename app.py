@@ -383,4 +383,77 @@ def afiliado_dashboard():
     
     ativos = df[df['status'] == 'Ativo'] if not df.empty else pd.DataFrame()
     qtd_ativos = len(ativos)
-    saldo_receber = ativos['valor_comiss
+    saldo_receber = ativos['valor_comissao'].sum() if not ativos.empty else 0.00
+    
+    # KPIS
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(f"""<div class="kpi-card" style="border-color: var(--success);"><div class="kpi-label">Sua Base Ativa</div><div class="kpi-value">{qtd_ativos}</div><div class="kpi-sub">Clientes pagantes</div></div>""", unsafe_allow_html=True)
+    c2.markdown(f"""<div class="kpi-card" style="border-color: var(--gold);"><div class="kpi-label">Saldo Disponível</div><div class="kpi-value">R$ {saldo_receber:.2f}</div><div class="kpi-sub">Comissões acumuladas</div></div>""", unsafe_allow_html=True)
+    
+    # Botão de Saque Simulado
+    with c3:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if saldo_receber > 50: # Exemplo: Saque mínimo
+            if st.button("💰 SOLICITAR SAQUE VIA PIX", use_container_width=True):
+                 st.toast("Solicitação enviada ao financeiro do Olimpo!", icon="✅")
+                 # Aqui você poderia integrar com n8n para te avisar no Telegram
+        else:
+             st.button("💰 Saldo insuficiente para saque (Mín R$50)", disabled=True, use_container_width=True)
+
+    st.markdown("---")
+
+    tab_vendas, tab_material = st.tabs(["📜 Extrato de Vendas", "📂 Material de Apoio"])
+
+    with tab_vendas:
+        if not df.empty:
+            # Formata a data para ficar bonita
+            df['created_at'] = df['created_at'].dt.strftime('%d/%m/%Y')
+            
+            # Adiciona cor ao status
+            def color_status(val):
+                color = '#00c853' if val == 'Ativo' else '#ff4b4b'
+                return f'color: {color}; font-weight: bold;'
+
+            st.dataframe(
+                df[['created_at', 'nome_cliente', 'valor_plano', 'status', 'valor_comissao']].style.map(color_status, subset=['status']),
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "created_at": "Data Venda",
+                    "nome_cliente": "Cliente",
+                    "valor_plano": st.column_config.NumberColumn("Plano", format="R$ %.2f"),
+                    "valor_comissao": st.column_config.NumberColumn("Sua Comissão", format="R$ %.2f")
+                }
+            )
+        else:
+             st.markdown("""<div style='text-align: center; padding: 50px; color: #aaa;'><h3>Ainda não há conquistas.</h3><p>Divulgue seu cupom para começar a construir seu império.</p></div>""", unsafe_allow_html=True)
+
+    with tab_material:
+        st.markdown("### 🚀 Acelere suas vendas")
+        c_drive, c_copy = st.columns(2)
+        with c_drive:
+             with st.container(border=True):
+                st.markdown("#### 📂 Drive de Arquivos")
+                st.write("Baixe banners, vídeos de prova social e logos em alta definição.")
+                st.link_button("👉 Acessar Google Drive Olympikus", "YOUR_DRIVE_LINK_HERE", use_container_width=True)
+        with c_copy:
+             with st.container(border=True):
+                st.markdown("#### 📝 Copy Pronta (WhatsApp)")
+                st.code(f"""Fala! Tudo bem?
+Vi que você curte futebol/filmes.
+Ainda tá pagando caro em TV a cabo?
+
+Tenho uma solução aqui com tudo liberado em 4K por apenas R$35.
+Usa meu cupom *{cupom}* que eu consigo um teste pra você agora.
+
+Bora economizar?""", language="text")
+
+# ==============================================================================
+# 🚦 ROTEADOR CENTRAL
+# ==============================================================================
+if not st.session_state['logged_in']:
+    login_screen()
+else:
+    if st.session_state['user_role'] == 'admin':
+        admin_dashboard()
+    elif st.session_state['user_role'] == 'afiliado':
+        afiliado_dashboard()
