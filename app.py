@@ -3,108 +3,53 @@ import pandas as pd
 from supabase import create_client
 import time
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # ==============================================================================
-# ⚙️ CONFIGURAÇÃO E CSS (NEON GLASS ULTRA)
+# ⚙️ SETUP E ESTILO CORPORATIVO
 # ==============================================================================
-st.set_page_config(page_title="Nexus Pro Manager", page_icon="📺", layout="wide")
+st.set_page_config(page_title="Gestor Pro", page_icon="💼", layout="wide")
 
 st.markdown("""
 <style>
-    /* Reset e Fonte */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+    /* Estilo Global Limpo */
+    .stApp { background-color: #0E1117; color: #FAFAFA; font-family: 'Segoe UI', sans-serif; }
     
-    .stApp { 
-        background-color: #050505; 
-        color: #E0E0E0; 
-        font-family: 'Inter', sans-serif;
-        background-image: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #050505 60%);
-    }
-    
-    /* KPI Cards Futuristas */
+    /* Cards KPI - Estilo Banco/Fintech */
     .metric-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        padding: 24px;
-        backdrop-filter: blur(20px);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
+        background-color: #1A1C24;
+        border: 1px solid #2D3748;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #3182CE; /* Azul Profissional */
     }
-    .metric-card:hover { 
-        transform: translateY(-5px); 
-        border-color: rgba(0, 255, 163, 0.3);
-        box-shadow: 0 10px 30px -10px rgba(0, 255, 163, 0.15); 
-    }
-    .metric-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 4px;
-        background: linear-gradient(90deg, #00FFA3, #00C885);
-        opacity: 0.5;
-    }
-    .metric-title { font-size: 13px; color: #8899A6; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; font-weight: 600; }
-    .metric-value { font-size: 32px; font-weight: 800; color: #FFF; letter-spacing: -1px; }
-    .metric-sub { font-size: 12px; color: #666; margin-top: 4px; }
+    .metric-title { font-size: 14px; color: #A0AEC0; font-weight: 500; text-transform: uppercase; }
+    .metric-value { font-size: 28px; font-weight: 700; color: #FFF; margin-top: 5px; }
+    .metric-sub { font-size: 12px; color: #718096; margin-top: 4px; }
     
-    /* Cores de Status */
-    .status-active { color: #00FFA3; font-weight: bold; }
-    .status-warning { color: #FFD700; font-weight: bold; }
-    .status-danger { color: #FF4B4B; font-weight: bold; }
+    /* Cores de Status Sóbrias */
+    .status-active { color: #48BB78; font-weight: 600; } /* Verde suave */
+    .status-warning { color: #ECC94B; font-weight: 600; } /* Amarelo */
+    .status-danger { color: #F56565; font-weight: 600; } /* Vermelho suave */
 
-    /* Inputs Modernos */
-    .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput input, .stTextArea textarea {
-        background-color: #0F0F12 !important; 
-        border: 1px solid #2A2A35 !important; 
-        color: white !important; 
-        border-radius: 8px;
-        transition: border 0.3s;
-    }
-    .stTextInput input:focus, .stNumberInput input:focus {
-        border-color: #00FFA3 !important;
+    /* Tabelas e Inputs */
+    .stDataFrame { border: 1px solid #2D3748; }
+    .stTextInput input, .stNumberInput input, .stSelectbox {
+        border-radius: 6px; border: 1px solid #4A5568; background-color: #1A202C; color: white;
     }
     
-    /* Tabelas */
-    .stDataFrame { border: 1px solid #2A2A35; border-radius: 12px; overflow: hidden; }
-    
-    /* Botões Neon */
+    /* Botões Padrão Azul */
     .stButton button {
-        background: linear-gradient(135deg, #00FFA3 0%, #00C885 100%);
-        color: #000;
-        border: none;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        padding: 0.6rem 1rem;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 255, 163, 0.2);
+        background-color: #3182CE; color: white; border: none; font-weight: 600;
+        border-radius: 6px; padding: 0.5rem 1rem;
     }
-    .stButton button:hover { 
-        transform: scale(1.02); 
-        box-shadow: 0 6px 20px rgba(0, 255, 163, 0.4); 
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { 
-        background-color: rgba(255,255,255,0.03); 
-        border-radius: 12px; 
-        padding: 4px; 
-        gap: 4px;
-    }
-    .stTabs [aria-selected="true"] { 
-        background-color: #1A1A22 !important; 
-        color: #00FFA3 !important; 
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
+    .stButton button:hover { background-color: #2B6CB0; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🔌 CONEXÃO E UTILS
+# 🔌 CONEXÃO E DADOS (COM CORREÇÃO DE DATA)
 # ==============================================================================
 @st.cache_resource
 def init_connection():
@@ -122,34 +67,41 @@ def get_data(table, order_col='created_at'):
     try:
         res = supabase.table(table).select("*").order(order_col, desc=True).execute()
         df = pd.DataFrame(res.data)
-        # Conversão de datas
+        
+        # Correção Crítica de Fusos Horários e Datas
         cols_date = ['created_at', 'data_expiracao']
         for col in cols_date:
             if not df.empty and col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
-        # Ajuste fuso horário apenas no created_at
+                # Remove fuso horário para evitar conflito com datetime.now()
+                if pd.api.types.is_datetime64_any_dtype(df[col]):
+                    if df[col].dt.tz is not None:
+                        df[col] = df[col].dt.tz_localize(None)
+                        
+        # Ajuste manual de -3h (Brasilia) se necessário após remover TZ
         if not df.empty and 'created_at' in df.columns:
              df['created_at'] = df['created_at'] - timedelta(hours=3)
+             
         return df
     except Exception: return pd.DataFrame()
 
-def render_metric(title, value, sub="", color="#00FFA3"):
+def render_metric(title, value, sub="", color="#3182CE"):
     st.markdown(f"""
-    <div class="metric-card" style="border-top-color: {color};">
-        <div class="metric-title" style="color: {color}">{title}</div>
+    <div class="metric-card" style="border-left-color: {color};">
+        <div class="metric-title">{title}</div>
         <div class="metric-value">{value}</div>
         <div class="metric-sub">{sub}</div>
     </div>
     """, unsafe_allow_html=True)
 
 def calcular_status_tempo(data_exp):
-    if pd.isnull(data_exp): return "Sem Data", "grey"
-    hoje = datetime.now()
+    if pd.isnull(data_exp): return "Sem Data", "#A0AEC0"
+    hoje = datetime.now() # Agora ambas as datas não tem fuso horário
     delta = (data_exp - hoje).days
     
-    if delta < 0: return "VENCIDO", "#FF4B4B" # Vermelho
-    if delta <= 3: return f"VENCE EM {delta} DIAS", "#FFD700" # Amarelo
-    return "ATIVO", "#00FFA3" # Verde
+    if delta < 0: return "VENCIDO", "#F56565"
+    if delta <= 3: return f"VENCE EM {delta} DIAS", "#ECC94B"
+    return "ATIVO", "#48BB78"
 
 # ==============================================================================
 # 🔐 LOGIN
@@ -158,440 +110,307 @@ if 'logged_in' not in st.session_state:
     st.session_state.update({'logged_in': False, 'role': None, 'user': {}})
 
 def login_ui():
-    c1, c2, c3 = st.columns([1, 1.2, 1])
+    c1, c2, c3 = st.columns([1, 1, 1])
     with c2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center; font-size: 3rem;'>NEXUS <span style='color:#00FFA3'>PRO</span></h1>", unsafe_allow_html=True)
+        st.markdown("<br><h2 style='text-align: center;'>Acesso ao Sistema</h2><br>", unsafe_allow_html=True)
         
-        tab1, tab2 = st.tabs(["Parceiro", "Administrador"])
+        tab1, tab2 = st.tabs(["Área do Parceiro", "Administração"])
         
         with tab1:
-            with st.container(border=True):
-                cupom = st.text_input("Seu Código (Cupom)").strip().upper()
-                if st.button("Acessar Painel Parceiro", use_container_width=True):
-                    if not supabase: st.error("Erro de Conexão"); return
+            with st.form("login_parceiro"):
+                cupom = st.text_input("Insira seu Cupom").strip().upper()
+                if st.form_submit_button("Entrar", use_container_width=True):
+                    if not supabase: st.error("Erro BD"); return
                     res = supabase.table("afiliados").select("*").eq("cupom", cupom).execute()
                     if res.data:
                         st.session_state.update({'logged_in': True, 'role': 'afiliado', 'user': res.data[0]})
                         st.rerun()
-                    else: st.error("Código inválido.")
+                    else: st.error("Cupom não encontrado.")
         
         with tab2:
-            with st.container(border=True):
-                senha = st.text_input("Chave de Acesso", type="password")
-                if st.button("Acessar Admin", use_container_width=True):
+            with st.form("login_admin"):
+                senha = st.text_input("Senha Admin", type="password")
+                if st.form_submit_button("Acessar", use_container_width=True):
                     if senha == st.secrets.get("ADMIN_PASSWORD", "admin123"):
                         st.session_state.update({'logged_in': True, 'role': 'admin'})
                         st.rerun()
-                    else: st.error("Acesso negado.")
+                    else: st.error("Senha incorreta.")
 
 # ==============================================================================
-# 🛡️ DASHBOARD ADMIN (SUPER COMPLETO)
+# 🛡️ ADMIN DASHBOARD
 # ==============================================================================
 def admin_dash():
     with st.sidebar:
-        st.markdown("### 🛡️ NEXUS ADMIN")
-        menu = st.radio("", ["Dashboard", "Vendas & Clientes", "Planos & Config", "Afiliados", "Marketing", "Financeiro"])
-        st.divider()
-        if st.button("Sair do Sistema"):
-            st.session_state.clear()
-            st.rerun()
+        st.header("Gestão")
+        menu = st.radio("Menu", ["Dashboard", "Vendas", "Planos", "Parceiros", "Marketing", "Financeiro"])
+        st.markdown("---")
+        if st.button("Sair"): st.session_state.clear(); st.rerun()
 
-    # Cache Data
+    # Carregamento de dados
     df_vendas = get_data('vendas')
     df_afiliados = get_data('afiliados')
     df_planos = get_data('planos', 'valor')
     df_saques = get_data('saques')
 
-    # 1. VISÃO GERAL -----------------------------------------------------------
     if menu == "Dashboard":
-        st.markdown("## 📊 Visão Geral da Operação")
+        st.title("Visão Geral")
         
-        # Filtros de Data
+        # Filtros e Lógica Segura de Data
         col_d1, col_d2 = st.columns([4, 1])
         with col_d2:
-            periodo = st.selectbox("Período", ["7 Dias", "30 Dias", "Este Mês", "Total"], index=1)
+            periodo = st.selectbox("Filtro", ["7 Dias", "30 Dias", "Este Mês", "Total"], index=1)
         
-        # Lógica de Filtro
         if not df_vendas.empty:
             hoje = datetime.now()
+            # Garante que 'hoje' não tem fuso horário
+            
             if periodo == "7 Dias": data_corte = hoje - timedelta(days=7)
             elif periodo == "30 Dias": data_corte = hoje - timedelta(days=30)
             elif periodo == "Este Mês": data_corte = hoje.replace(day=1)
             else: data_corte = hoje - timedelta(days=3650)
             
+            # Filtro com erro corrigido (agora ambas as colunas são naive datetime)
             df_filt = df_vendas[df_vendas['created_at'] >= data_corte]
             
-            # Métricas Calculadas
-            vendas_totais = len(df_filt)
-            faturamento = df_filt['valor_plano'].sum()
-            lucro = faturamento - df_filt['valor_comissao'].sum()
-            ticket_medio = faturamento / vendas_totais if vendas_totais > 0 else 0
+            fat = df_filt['valor_plano'].sum()
+            lucro = fat - df_filt['valor_comissao'].sum()
             
-            # Vencendo em breve (Global)
+            # Vencimentos Próximos
             vencendo = 0
             if 'data_expiracao' in df_vendas.columns:
-                mask_vence = (df_vendas['data_expiracao'] <= (hoje + timedelta(days=3))) & (df_vendas['data_expiracao'] >= hoje)
-                vencendo = len(df_vendas[mask_vence])
+                # Filtrar apenas datas validas
+                validas = df_vendas[df_vendas['data_expiracao'].notna()]
+                mask = (validas['data_expiracao'] <= (hoje + timedelta(days=3))) & (validas['data_expiracao'] >= hoje)
+                vencendo = len(validas[mask])
             
-            # KPIs
             k1, k2, k3, k4 = st.columns(4)
-            with k1: render_metric("Vendas no Período", vendas_totais, "Novas assinaturas")
-            with k2: render_metric("Faturamento", f"R$ {faturamento:,.2f}", "Bruto gerado")
-            with k3: render_metric("Lucro Líquido", f"R$ {lucro:,.2f}", "Após comissões", "#00E0FF")
-            with k4: render_metric("Renovações Pendentes", vencendo, "Vencem em 3 dias", "#FFD700" if vencendo > 0 else "#00FFA3")
+            with k1: render_metric("Vendas", len(df_filt), "No período")
+            with k2: render_metric("Receita", f"R$ {fat:,.2f}", "Bruta")
+            with k3: render_metric("Líquido", f"R$ {lucro:,.2f}", "Real", "#48BB78")
+            with k4: render_metric("A Vencer", vencendo, "Próx. 3 dias", "#ECC94B")
             
             st.markdown("---")
             
-            # Gráficos
             g1, g2 = st.columns([2, 1])
             with g1:
-                st.subheader("📈 Fluxo de Caixa Diário")
+                st.subheader("Receita Diária")
                 if not df_filt.empty:
-                    daily = df_filt.groupby(df_filt['created_at'].dt.date)[['valor_plano']].sum().reset_index()
-                    fig = px.bar(daily, x='created_at', y='valor_plano', template="plotly_dark")
-                    fig.update_traces(marker_color='#00FFA3', marker_line_width=0)
-                    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=0,r=0,t=0,b=0))
+                    daily = df_filt.groupby(df_filt['created_at'].dt.date)['valor_plano'].sum().reset_index()
+                    fig = px.bar(daily, x='created_at', y='valor_plano')
+                    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                    fig.update_traces(marker_color='#3182CE')
                     st.plotly_chart(fig, use_container_width=True)
             
             with g2:
-                st.subheader("🏆 Top Planos")
+                st.subheader("Planos")
                 if not df_filt.empty and 'plano_nome' in df_filt.columns:
-                    top_planos = df_filt['plano_nome'].value_counts().reset_index()
-                    fig2 = px.pie(top_planos, values='count', names='plano_nome', hole=0.7, color_discrete_sequence=px.colors.sequential.Tealgrn_r)
-                    fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', showlegend=False, margin=dict(l=0,r=0,t=0,b=0))
+                    top = df_filt['plano_nome'].value_counts().reset_index()
+                    fig2 = px.pie(top, values='count', names='plano_nome', hole=0.5)
                     st.plotly_chart(fig2, use_container_width=True)
         else:
-            st.info("Sem dados de vendas para exibir.")
+            st.info("Sem dados registrados.")
 
-    # 2. VENDAS E CLIENTES -----------------------------------------------------
-    elif menu == "Vendas & Clientes":
-        st.markdown("## 📋 Gestão de Clientes")
+    elif menu == "Vendas":
+        st.title("Controle de Assinaturas")
+        tab_new, tab_list = st.tabs(["Nova Venda", "Lista Clientes"])
         
-        # Tabs internas
-        tab_nova, tab_lista = st.tabs(["➕ Nova Assinatura", "🔍 Base de Clientes"])
-        
-        with tab_nova:
-            with st.container(border=True):
-                st.markdown("### Registrar Venda Manual")
-                with st.form("form_venda_admin"):
-                    c1, c2 = st.columns(2)
-                    nome_cliente = c1.text_input("Nome do Cliente", placeholder="Ex: João da Silva")
-                    whatsapp_cliente = c2.text_input("WhatsApp do Cliente", placeholder="5511999999999")
-                    
-                    c3, c4 = st.columns(2)
-                    # Selectbox de Planos dinâmico
-                    opcoes_planos = {f"{row['nome']} (R$ {row['valor']})": row for i, row in df_planos.iterrows()} if not df_planos.empty else {}
-                    plano_selecionado = c3.selectbox("Selecione o Plano", list(opcoes_planos.keys()) if opcoes_planos else ["Padrão - R$ 35.00"])
-                    
-                    cupom_parceiro = c4.text_input("Cupom Parceiro (Opcional)").upper()
-                    
-                    if st.form_submit_button("✅ Confirmar Venda"):
-                        if opcoes_planos:
-                            dados_plano = opcoes_planos[plano_selecionado]
-                            valor_final = float(dados_plano['valor'])
-                            dias_plano = int(dados_plano['dias'])
-                            nome_plano = dados_plano['nome']
-                            # Verifica comissão do plano ou usa a fixa do parceiro
-                            comissao = float(dados_plano['comissao_fixa'])
-                        else:
-                            valor_final = 35.0
-                            dias_plano = 30
-                            nome_plano = "Manual"
-                            comissao = 0.0
-
-                        # Se tiver cupom, valida parceiro e sobrescreve comissão se necessário
-                        if cupom_parceiro:
-                            check = supabase.table("afiliados").select("*").eq("cupom", cupom_parceiro).execute()
-                            if check.data:
-                                # Se o plano não tem comissão fixa definida (0), usa padrão R$ 15,00 ou lógica custom
-                                if comissao == 0: comissao = 15.00 
-                            else:
-                                st.warning("Cupom não existe! Venda registrada sem comissão.")
-                                cupom_parceiro = None
-                                comissao = 0
-
-                        # Data Expiração
-                        data_exp = datetime.now() + timedelta(days=dias_plano)
-                        
-                        supabase.table("vendas").insert({
-                            "nome_cliente": nome_cliente,
-                            "valor_plano": valor_final,
-                            "cupom": cupom_parceiro,
-                            "valor_comissao": comissao,
-                            "plano_nome": nome_plano,
-                            "data_expiracao": data_exp.strftime('%Y-%m-%d'),
-                            "status": "Ativo"
-                        }).execute()
-                        st.toast("Venda registrada com sucesso!", icon="✅")
-                        time.sleep(1)
-                        st.rerun()
-
-        with tab_lista:
-            if not df_vendas.empty:
-                # Busca rápida
-                search = st.text_input("Buscar Cliente (Nome)", placeholder="Digite para filtrar...")
-                df_show = df_vendas[df_vendas['nome_cliente'].str.contains(search, case=False, na=False)] if search else df_vendas
+        with tab_new:
+            with st.form("form_venda"):
+                c1, c2 = st.columns(2)
+                nome = c1.text_input("Cliente")
+                whats = c2.text_input("WhatsApp")
                 
-                # Lista customizada com HTML
-                st.markdown("### Lista de Clientes")
-                for i, row in df_show.iterrows():
-                    # Lógica de status
-                    status_txt, status_cor = calcular_status_tempo(row['data_expiracao']) if 'data_expiracao' in row else ("N/A", "grey")
+                c3, c4 = st.columns(2)
+                # Planos
+                mapa_planos = {f"{r['nome']} (R$ {r['valor']})": r for i, r in df_planos.iterrows()} if not df_planos.empty else {}
+                plano_key = c3.selectbox("Plano", list(mapa_planos.keys()) if mapa_planos else ["Manual"])
+                cupom_in = c4.text_input("Cupom Parceiro").upper()
+                
+                if st.form_submit_button("Salvar Venda"):
+                    if mapa_planos:
+                        p_dados = mapa_planos[plano_key]
+                        val, dias, p_nome, comissao = float(p_dados['valor']), int(p_dados['dias']), p_dados['nome'], float(p_dados['comissao_fixa'])
+                    else:
+                        val, dias, p_nome, comissao = 35.0, 30, "Manual", 0.0
                     
-                    with st.expander(f"{status_txt} | {row['nome_cliente']} ({row['plano_nome'] if 'plano_nome' in row else 'N/A'})"):
-                        c_info, c_action = st.columns([3, 1])
-                        with c_info:
-                            st.write(f"**Data Venda:** {row['created_at'].strftime('%d/%m/%Y') if not pd.isnull(row['created_at']) else '-'}")
-                            st.write(f"**Vencimento:** {row['data_expiracao'].strftime('%d/%m/%Y') if 'data_expiracao' in row and not pd.isnull(row['data_expiracao']) else '-'}")
-                            st.write(f"**Valor:** R$ {row['valor_plano']} | **Comissão:** R$ {row['valor_comissao']}")
-                            st.write(f"**Cupom:** {row['cupom'] if row['cupom'] else 'Direta'}")
-                        
-                        with c_action:
-                            st.markdown("#### Ações")
-                            # Botão Renovar
-                            if st.button("🔄 Renovar 30 Dias", key=f"renov_{row['id']}"):
-                                nova_exp = (row['data_expiracao'] if not pd.isnull(row['data_expiracao']) else datetime.now()) + timedelta(days=30)
-                                supabase.table("vendas").update({"data_expiracao": nova_exp.strftime('%Y-%m-%d'), "status": "Ativo"}).eq("id", row['id']).execute()
-                                st.success("Renovado!")
-                                time.sleep(0.5)
-                                st.rerun()
-                            
-                            # Botão Cancelar
-                            if st.button("❌ Cancelar", key=f"canc_{row['id']}"):
-                                supabase.table("vendas").update({"status": "Cancelado"}).eq("id", row['id']).execute()
-                                st.rerun()
-                            
-                            # Link WhatsApp Cobrança
-                            msg = f"Olá {row['nome_cliente']}, seu plano Nexus TV vence dia {row['data_expiracao'].strftime('%d/%m')}. Vamos renovar?"
-                            link = f"https://wa.me/?text={msg.replace(' ', '%20')}"
-                            st.link_button("💬 Cobrar no Zap", link)
-            else:
-                st.info("Nenhuma venda encontrada.")
+                    if cupom_in:
+                        chk = supabase.table("afiliados").select("*").eq("cupom", cupom_in).execute()
+                        if not chk.data: 
+                            st.warning("Cupom inválido! Sem comissão."); cupom_in = None; comissao = 0
+                        elif comissao == 0: comissao = 15.0 # Fallback
+                    
+                    exp = datetime.now() + timedelta(days=dias)
+                    supabase.table("vendas").insert({
+                        "nome_cliente": nome, "valor_plano": val, "cupom": cupom_in,
+                        "valor_comissao": comissao, "plano_nome": p_nome,
+                        "data_expiracao": exp.strftime('%Y-%m-%d'), "status": "Ativo"
+                    }).execute()
+                    st.success("Registrado!"); time.sleep(1); st.rerun()
 
-    # 3. PLANOS E CONFIG -------------------------------------------------------
-    elif menu == "Planos & Config":
-        st.markdown("## 🛠️ Configuração de Planos")
-        
+        with tab_list:
+            if not df_vendas.empty:
+                search = st.text_input("Buscar Cliente")
+                df_s = df_vendas[df_vendas['nome_cliente'].str.contains(search, case=False, na=False)] if search else df_vendas
+                
+                for i, row in df_s.iterrows():
+                    st_txt, st_cor = calcular_status_tempo(row['data_expiracao']) if 'data_expiracao' in row else ("-", "grey")
+                    with st.expander(f"{row['nome_cliente']} - {st_txt}"):
+                        c1, c2 = st.columns([3, 1])
+                        c1.write(f"Plano: {row.get('plano_nome')} | Vence: {row.get('data_expiracao', pd.NaT)}")
+                        c1.write(f"Valor: R$ {row['valor_plano']} | Com: R$ {row['valor_comissao']}")
+                        if c2.button("Renovar (+30)", key=f"r_{row['id']}"):
+                            dt_base = row['data_expiracao'] if pd.notnull(row['data_expiracao']) else datetime.now()
+                            # Ensure dt_base is naive before adding timedelta if needed, usually ok here
+                            if isinstance(dt_base, pd.Timestamp) and dt_base.tz is not None:
+                                dt_base = dt_base.tz_localize(None)
+                            
+                            n_exp = dt_base + timedelta(days=30)
+                            supabase.table("vendas").update({"data_expiracao": n_exp.strftime('%Y-%m-%d'), "status": "Ativo"}).eq("id", row['id']).execute()
+                            st.rerun()
+            else: st.info("Sem vendas.")
+
+    elif menu == "Planos":
+        st.title("Configurar Planos")
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.markdown("### Novo Plano")
-            with st.form("add_plan"):
-                nome_p = st.text_input("Nome (Ex: Mensal 4K)")
-                valor_p = st.number_input("Valor Venda (R$)", value=35.0)
-                dias_p = st.number_input("Duração (Dias)", value=30)
-                comissao_p = st.number_input("Comissão Fixa Parceiro", value=15.0)
-                if st.form_submit_button("Salvar Plano"):
-                    supabase.table("planos").insert({
-                        "nome": nome_p, "valor": valor_p, "dias": dias_p, "comissao_fixa": comissao_p
-                    }).execute()
-                    st.success("Plano criado!")
-                    time.sleep(1)
+            with st.form("new_plan"):
+                nome = st.text_input("Nome")
+                val = st.number_input("Valor", value=30.0)
+                dias = st.number_input("Dias", value=30)
+                com = st.number_input("Comissão", value=10.0)
+                if st.form_submit_button("Criar"):
+                    supabase.table("planos").insert({"nome": nome, "valor": val, "dias": dias, "comissao_fixa": com}).execute()
                     st.rerun()
-        
         with c2:
-            st.markdown("### Planos Ativos")
-            if not df_planos.empty:
-                st.dataframe(
-                    df_planos[['nome', 'valor', 'dias', 'comissao_fixa']], 
-                    hide_index=True, 
-                    use_container_width=True,
-                    column_config={
-                        "valor": st.column_config.NumberColumn("Preço", format="R$ %.2f"),
-                        "comissao_fixa": st.column_config.NumberColumn("Comissão", format="R$ %.2f")
-                    }
-                )
-                # Botão para deletar (simplificado via ID se necessário)
-                id_del = st.number_input("ID para Deletar", min_value=0)
-                if st.button("Deletar Plano por ID") and id_del > 0:
-                     supabase.table("planos").delete().eq("id", id_del).execute()
-                     st.rerun()
+            if not df_planos.empty: st.dataframe(df_planos[['nome', 'valor', 'dias', 'comissao_fixa']], use_container_width=True)
 
-    # 4. AFILIADOS -------------------------------------------------------------
-    elif menu == "Afiliados":
-        st.markdown("## 👥 Gestão de Parceiros")
-        
-        with st.expander("➕ Cadastrar Novo Parceiro"):
-            with st.form("new_aff"):
-                ca1, ca2 = st.columns(2)
-                nome_a = ca1.text_input("Nome Completo")
-                cupom_a = ca2.text_input("CUPOM EXCLUSIVO").upper()
-                whats_a = st.text_input("WhatsApp")
+    elif menu == "Parceiros":
+        st.title("Parceiros")
+        with st.expander("Novo Parceiro"):
+            with st.form("add_parc"):
+                nome = st.text_input("Nome")
+                cupom = st.text_input("CUPOM").upper()
+                whats = st.text_input("Zap")
                 if st.form_submit_button("Cadastrar"):
                     try:
-                        supabase.table("afiliados").insert({"nome": nome_a, "cupom": cupom_a, "whatsapp": whats_a}).execute()
-                        st.success("Parceiro cadastrado!")
-                        st.rerun()
-                    except: st.error("Erro: Cupom já existe.")
+                        supabase.table("afiliados").insert({"nome": nome, "cupom": cupom, "whatsapp": whats}).execute()
+                        st.success("Feito!"); st.rerun()
+                    except: st.error("Erro/Duplicado")
+        if not df_afiliados.empty: st.dataframe(df_afiliados, use_container_width=True)
 
-        if not df_afiliados.empty:
-            st.dataframe(df_afiliados, use_container_width=True, hide_index=True)
-
-    # 5. MARKETING -------------------------------------------------------------
     elif menu == "Marketing":
-        st.markdown("## 📢 Materiais para Afiliados")
-        st.write("Adicione textos e links que aparecerão no painel dos seus parceiros.")
-        
-        with st.form("mkt_form"):
-            titulo_m = st.text_input("Título do Material")
-            tipo_m = st.selectbox("Tipo", ["Texto (Copy)", "Link Imagem (Banner)"])
-            conteudo_m = st.text_area("Conteúdo (Texto ou URL)")
-            if st.form_submit_button("Publicar Material"):
-                supabase.table("marketing").insert({"titulo": titulo_m, "tipo": tipo_m, "conteudo": conteudo_m}).execute()
-                st.success("Publicado!")
+        st.title("Marketing")
+        with st.form("mkt"):
+            tit = st.text_input("Título")
+            tipo = st.selectbox("Tipo", ["Texto", "Imagem"])
+            cont = st.text_area("Conteúdo")
+            if st.form_submit_button("Postar"):
+                supabase.table("marketing").insert({"titulo": tit, "tipo": tipo, "conteudo": cont}).execute()
+                st.success("Postado!")
 
-    # 6. FINANCEIRO ------------------------------------------------------------
     elif menu == "Financeiro":
-        st.markdown("## 💰 Solicitações de Saque")
-        
+        st.title("Financeiro")
         if not df_saques.empty:
-            pendentes = df_saques[df_saques['status'] == 'Pendente']
-            historico = df_saques[df_saques['status'] != 'Pendente']
+            pends = df_saques[df_saques['status'] == 'Pendente']
+            if not pends.empty:
+                st.warning(f"{len(pends)} solicitações pendentes")
+                for i, r in pends.iterrows():
+                    with st.container():
+                        c1, c2, c3 = st.columns([2, 1, 1])
+                        c1.write(f"**{r['cupom']}**: R$ {r['valor']} ({r['created_at']})")
+                        if c2.button("Pagar", key=f"p_{r['id']}"):
+                            supabase.table("saques").update({"status": "Pago"}).eq("id", r['id']).execute(); st.rerun()
+                        if c3.button("Recusar", key=f"d_{r['id']}"):
+                            supabase.table("saques").update({"status": "Rejeitado"}).eq("id", r['id']).execute(); st.rerun()
             
-            if not pendentes.empty:
-                st.error(f"🔔 Existem {len(pendentes)} solicitações pendentes!")
-                for i, row in pendentes.iterrows():
-                    with st.container(border=True):
-                        cols = st.columns([2, 1, 1, 1])
-                        cols[0].write(f"**{row['cupom']}** pediu **R$ {row['valor']:.2f}**")
-                        cols[1].caption(row['created_at'].strftime('%d/%m %H:%M'))
-                        if cols[2].button("✅ Pagar", key=f"pay_{row['id']}"):
-                            supabase.table("saques").update({"status": "Pago"}).eq("id", row['id']).execute()
-                            st.rerun()
-                        if cols[3].button("🚫 Negar", key=f"deny_{row['id']}"):
-                            supabase.table("saques").update({"status": "Rejeitado"}).eq("id", row['id']).execute()
-                            st.rerun()
-            else:
-                st.success("Tudo em dia! Sem pendências.")
-            
-            st.markdown("### Histórico")
-            st.dataframe(historico, use_container_width=True, hide_index=True)
+            st.markdown("#### Histórico")
+            st.dataframe(df_saques, use_container_width=True)
 
 # ==============================================================================
-# 🚀 DASHBOARD PARCEIRO
+# 🚀 PARCEIRO DASHBOARD
 # ==============================================================================
 def affiliate_dash():
     user = st.session_state['user']
     cupom = user['cupom']
     
     with st.sidebar:
-        st.markdown(f"# 👋 Olá, {user['nome'].split()[0]}")
-        st.markdown(f"""
-        <div style="background:#1A1A22; padding:10px; border-radius:8px; border:1px solid #333; text-align:center;">
-            <small>SEU CUPOM</small><br>
-            <strong style="font-size:1.5rem; color:#00FFA3">{cupom}</strong>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        menu = st.radio("Menu", ["Resumo", "Meus Clientes", "Marketing", "Financeiro"])
-        st.divider()
-        if st.button("Sair"):
-            st.session_state.clear()
-            st.rerun()
+        st.title(f"Olá, {user['nome'].split()[0]}")
+        st.info(f"Cupom: {cupom}")
+        menu = st.radio("Menu", ["Visão Geral", "Clientes", "Marketing", "Financeiro"])
+        st.markdown("---")
+        if st.button("Sair"): st.session_state.clear(); st.rerun()
 
     df_vendas = get_data('vendas')
-    minhas_vendas = df_vendas[df_vendas['cupom'] == cupom] if not df_vendas.empty else pd.DataFrame()
-
-    # 1. RESUMO ----------------------------------------------------------------
-    if menu == "Resumo":
-        st.markdown("## 🚀 Performance")
+    minhas = df_vendas[df_vendas['cupom'] == cupom] if not df_vendas.empty else pd.DataFrame()
+    
+    if menu == "Visão Geral":
+        st.title("Seu Desempenho")
         
-        # Cálculos
-        ativas = minhas_vendas[minhas_vendas['status'] == 'Ativo'] if not minhas_vendas.empty else pd.DataFrame()
-        total_comissao = ativas['valor_comissao'].sum() if not ativas.empty else 0
+        ativos = minhas[minhas['status'] == 'Ativo'] if not minhas.empty else pd.DataFrame()
+        total_com = ativos['valor_comissao'].sum() if not ativos.empty else 0
         
-        df_saques = get_data('saques')
-        meus_saques = df_saques[(df_saques['cupom'] == cupom) & (df_saques['status'] != 'Rejeitado')] if not df_saques.empty else pd.DataFrame()
-        sacado = meus_saques['valor'].sum() if not meus_saques.empty else 0
-        disponivel = total_comissao - sacado
-
+        df_saq = get_data('saques')
+        meus_saq = df_saq[(df_saq['cupom'] == cupom) & (df_saq['status'] != 'Rejeitado')] if not df_saq.empty else pd.DataFrame()
+        sacado = meus_saq['valor'].sum() if not meus_saq.empty else 0
+        disp = total_com - sacado
+        
         c1, c2, c3 = st.columns(3)
-        with c1: render_metric("Clientes Ativos", len(ativas), "Recorrência garantida")
-        with c2: render_metric("Saldo Total", f"R$ {total_comissao:.2f}", "Acumulado")
-        with c3: render_metric("Disponível Saque", f"R$ {disponivel:.2f}", "Solicite no menu Financeiro", "#D300C5")
-
-        st.markdown("### ⚡ Links Rápidos")
-        c_link, c_copia = st.columns([3, 1])
-        with c_link:
-            msg = f"Olá! Quero assinar o Nexus TV com o cupom {cupom}."
-            link_zap = f"https://wa.me/5511999999999?text={msg.replace(' ', '%20')}"
-            st.code(link_zap, language="text")
-        with c_copia:
-            st.info("👆 Copie e mande para seu cliente.")
-
-    # 2. MEUS CLIENTES ---------------------------------------------------------
-    elif menu == "Meus Clientes":
-        st.markdown("## 🤝 Sua Carteira de Clientes")
+        with c1: render_metric("Ativos", len(ativos))
+        with c2: render_metric("Ganho Total", f"R$ {total_com:.2f}")
+        with c3: render_metric("Disponível", f"R$ {disp:.2f}", color="#48BB78")
         
-        if not minhas_vendas.empty:
-            for i, row in minhas_vendas.iterrows():
-                status_txt, status_cor = calcular_status_tempo(row['data_expiracao']) if 'data_expiracao' in row else ("-", "grey")
-                
-                with st.container(border=True):
-                    c1, c2, c3 = st.columns([2, 1, 1])
-                    c1.write(f"**{row['nome_cliente']}**")
-                    c1.caption(f"Plano: {row.get('plano_nome', 'Padrão')}")
-                    
-                    c2.markdown(f"<span style='color:{status_cor}'>{status_txt}</span>", unsafe_allow_html=True)
-                    if 'data_expiracao' in row and not pd.isnull(row['data_expiracao']):
-                         c2.caption(f"Vence: {row['data_expiracao'].strftime('%d/%m')}")
-                    
-                    # Botão cobrar
-                    msg = f"Oi {row['nome_cliente']}! Seu plano vence dia {row['data_expiracao'].strftime('%d/%m')}. Vamos renovar?"
-                    link = f"https://wa.me/?text={msg.replace(' ', '%20')}"
-                    c3.link_button("📲 Cobrar", link, use_container_width=True)
-        else:
-            st.info("Você ainda não tem vendas.")
+        st.markdown("### Gerador de Link")
+        msg = f"Ola, quero renovar com cupom {cupom}"
+        link = f"https://wa.me/5511999999999?text={msg.replace(' ', '%20')}"
+        st.code(link)
 
-    # 3. MARKETING -------------------------------------------------------------
+    elif menu == "Clientes":
+        st.title("Seus Clientes")
+        if not minhas.empty:
+            for i, r in minhas.iterrows():
+                st_txt, st_cor = calcular_status_tempo(r['data_expiracao']) if 'data_expiracao' in r else ("-", "grey")
+                with st.expander(f"{r['nome_cliente']} ({st_txt})"):
+                    st.write(f"Plano: {r.get('plano_nome')} | Vence: {r.get('data_expiracao')}")
+                    # Link de cobrança
+                    l_cob = f"https://wa.me/?text=Ola%20{r['nome_cliente']}%20seu%20plano%20vence%20dia%20{r.get('data_expiracao')}"
+                    st.link_button("Enviar Cobrança WhatsApp", l_cob)
+        else: st.info("Nenhuma venda ainda.")
+
     elif menu == "Marketing":
-        st.markdown("## 📢 Materiais de Divulgação")
+        st.title("Materiais")
         df_mkt = get_data("marketing")
-        
         if not df_mkt.empty:
-            for i, row in df_mkt.iterrows():
-                with st.expander(f"📌 {row['titulo']}"):
-                    if row['tipo'] == "Texto (Copy)":
-                        st.code(row['conteudo'], language="text")
-                    else:
-                        st.image(row['conteudo'])
-                        st.caption(row['conteudo'])
-        else:
-            st.info("O Admin ainda não postou materiais.")
-
-    # 4. FINANCEIRO ------------------------------------------------------------
+            for i, r in df_mkt.iterrows():
+                st.subheader(r['titulo'])
+                if r['tipo'] == 'Imagem': st.image(r['conteudo'])
+                else: st.code(r['conteudo'])
+    
     elif menu == "Financeiro":
-        st.markdown("## 💸 Seus Ganhos")
-        
+        st.title("Solicitar Saque")
         # Recalcular saldo
-        ativas = minhas_vendas[minhas_vendas['status'] == 'Ativo'] if not minhas_vendas.empty else pd.DataFrame()
-        total_comissao = ativas['valor_comissao'].sum() if not ativas.empty else 0
-        df_saques = get_data('saques')
-        meus_saques = df_saques[(df_saques['cupom'] == cupom) & (df_saques['status'] != 'Rejeitado')] if not df_saques.empty else pd.DataFrame()
-        sacado = meus_saques['valor'].sum() if not meus_saques.empty else 0
-        disponivel = total_comissao - sacado
+        ativos = minhas[minhas['status'] == 'Ativo'] if not minhas.empty else pd.DataFrame()
+        total_com = ativos['valor_comissao'].sum() if not ativos.empty else 0
+        df_saq = get_data('saques')
+        meus_saq = df_saq[(df_saq['cupom'] == cupom) & (df_saq['status'] != 'Rejeitado')] if not df_saq.empty else pd.DataFrame()
+        sacado = meus_saq['valor'].sum() if not meus_saq.empty else 0
+        disp = total_com - sacado
         
-        st.metric("Disponível para Saque", f"R$ {disponivel:.2f}")
+        st.info(f"Disponível: R$ {disp:.2f}")
         
-        with st.form("solicitar_saque"):
-            valor = st.number_input("Valor do Saque (R$)", min_value=10.0, max_value=float(disponivel) if disponivel > 0 else 10.0)
-            pix = st.text_input("Sua Chave PIX")
-            if st.form_submit_button("Solicitar Pix") and disponivel >= valor:
-                supabase.table("saques").insert({"cupom": cupom, "valor": valor, "status": "Pendente", "comprovante": pix}).execute()
-                st.success("Solicitação enviada!")
-                st.rerun()
-
-        st.markdown("#### Histórico")
-        if not meus_saques.empty:
-            st.dataframe(meus_saques[['created_at', 'valor', 'status']], use_container_width=True)
+        with st.form("saque"):
+            val = st.number_input("Valor", min_value=10.0, max_value=float(disp) if disp > 0 else 10.0)
+            pix = st.text_input("Chave PIX")
+            if st.form_submit_button("Pedir Saque") and disp >= val:
+                supabase.table("saques").insert({"cupom": cupom, "valor": val, "status": "Pendente", "comprovante": pix}).execute()
+                st.success("Enviado!"); st.rerun()
+        
+        st.dataframe(meus_saq[['created_at', 'valor', 'status']], use_container_width=True)
 
 # ==============================================================================
-# 🚦 ROTEAMENTO
+# 🚦 APP
 # ==============================================================================
 if not st.session_state['logged_in']:
     login_ui()
 else:
-    if st.session_state['role'] == 'admin':
-        admin_dash()
-    elif st.session_state['role'] == 'afiliado':
-        affiliate_dash()
+    if st.session_state['role'] == 'admin': admin_dash()
+    elif st.session_state['role'] == 'afiliado': affiliate_dash()
