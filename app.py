@@ -4,11 +4,16 @@ from supabase import create_client
 import time
 import plotly.express as px
 from datetime import datetime, timedelta
+import requests
 
 # ==============================================================================
-# ⚙️ CONFIGURAÇÃO E NOVO VISUAL (MODERN SAAS)
+# ⚙️ CONFIGURAÇÃO E VISUAL
 # ==============================================================================
 st.set_page_config(page_title="Nexus Manager", page_icon="🚀", layout="wide")
+
+# URL do Webhook do n8n (Aquele que criamos para a Auditoria IA)
+# Chefe, troque pelo seu link de produção do n8n quando estiver pronto
+N8N_WEBHOOK_URL = "https://seu-n8n.com/webhook/auditoria-saas"
 
 st.markdown("""
 <style>
@@ -52,10 +57,6 @@ st.markdown("""
     }
     .stButton button:hover { background-color: #1D4ED8; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
     
-    /* Botão de Excluir (Vermelho) */
-    .delete-btn button { background-color: #EF4444 !important; }
-    .delete-btn button:hover { background-color: #DC2626 !important; }
-
     /* Inputs */
     .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput input {
         border-radius: 8px; border: 1px solid #D1D5DB; color: #1F2937; background-color: white;
@@ -64,13 +65,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🔌 CONEXÃO E FUNÇÕES
+# 🔌 CONEXÃO E FUNÇÕES ÚTEIS
 # ==============================================================================
 @st.cache_resource
 def init_connection():
     try:
-        url = st.secrets.get("SUPABASE_URL", "")
-        key = st.secrets.get("SUPABASE_KEY", "")
+        # Chefe, se não tiver secrets.toml, ele tenta pegar direto daqui (backup)
+        url = st.secrets.get("SUPABASE_URL", "https://dhihqmxjclyrqkbxshtv.supabase.co")
+        key = st.secrets.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRoaWhxbXhqY2x5cnFrYnhzaHR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0NTE4MDgsImV4cCI6MjA3ODAyNzgwOH0.jD0RhVMTDHc4Ch9vV_PQ2OlBfyei-PA7VmvEJ1IWi3w")
         if not url or not key: return None
         return create_client(url, key)
     except: return None
@@ -83,7 +85,7 @@ def get_data(table, order_col='created_at'):
         res = supabase.table(table).select("*").order(order_col, desc=True).execute()
         df = pd.DataFrame(res.data)
         
-        # Tratamento de datas e fuso horário
+        # Ajuste de datas e fuso
         cols_date = ['created_at', 'data_expiracao']
         for col in cols_date:
             if not df.empty and col in df.columns:
@@ -143,7 +145,9 @@ def login_ui():
             with tab_adm:
                 senha = st.text_input("Senha Administrativa", type="password")
                 if st.button("Entrar Admin", use_container_width=True):
-                    if senha == st.secrets.get("ADMIN_PASSWORD", "admin123"):
+                    # Chefe, senha hardcoded aqui conforme seu pedido anterior
+                    senha_admin = st.secrets.get("ADMIN_PASSWORD", "170905@Ju")
+                    if senha == senha_admin:
                         st.session_state.update({'logged_in': True, 'role': 'admin'})
                         st.rerun()
                     else: st.error("Senha incorreta.")
@@ -153,7 +157,6 @@ def login_ui():
 # 🛡️ ADMIN PANEL
 # ==============================================================================
 def admin_panel():
-    # Sidebar Navigation
     with st.sidebar:
         st.header("Admin Panel")
         nav = st.radio("Navegação", ["Dashboard", "Gerenciar Parceiros", "Base de Clientes", "Financeiro"], label_visibility="collapsed")
@@ -162,7 +165,7 @@ def admin_panel():
             st.session_state.clear()
             st.rerun()
 
-    # Data Loading
+    # Carrega dados frescos
     df_vendas = get_data('vendas')
     df_afiliados = get_data('afiliados')
     df_saques = get_data('saques')
@@ -190,6 +193,31 @@ def admin_panel():
         with c3: card_metric("Comissões Pagas", f"R$ {comissoes:,.0f}")
         with c4: card_metric("Lucro Líquido", f"R$ {lucro:,.0f}", "metric-highlight")
 
+        # Integração n8n (Auditoria IA)
+        st.markdown("---")
+        st.subheader("🤖 IA Advisor - Raio-X da Operação")
+        
+        col_ia_1, col_ia_2 = st.columns([1, 3])
+        with col_ia_1:
+             if st.button("⚡ Gerar Relatório de Inteligência"):
+                with st.spinner("Conectando ao n8n e analisando dados..."):
+                    try:
+                        # Se a URL não estiver definida (teste local), avisa
+                        if "seu-n8n" in N8N_WEBHOOK_URL:
+                             st.warning("Configure a URL do Webhook no código para funcionar.")
+                        else:
+                            resp = requests.post(N8N_WEBHOOK_URL)
+                            if resp.status_code == 200:
+                                dados_ia = resp.json()
+                                msg_ia = dados_ia.get("relatorio", "Análise concluída, mas sem texto de retorno.")
+                                st.success("Análise recebida com sucesso!")
+                                with col_ia_2:
+                                    st.info(msg_ia)
+                            else:
+                                st.error("Erro ao conectar com o n8n.")
+                    except Exception as e:
+                        st.error(f"Erro técnico: {e}")
+
         # Gráfico
         st.markdown("### Evolução Diária")
         if not df_filt.empty:
@@ -198,24 +226,21 @@ def admin_panel():
             fig.update_layout(plot_bgcolor='white', margin=dict(t=10,l=10,r=10,b=10))
             st.plotly_chart(fig, use_container_width=True)
 
-    # --- 2. GERENCIAR PARCEIROS (CRUD) ---
+    # --- 2. GERENCIAR PARCEIROS ---
     elif nav == "Gerenciar Parceiros":
         st.title("Gestão de Parceiros")
-        
         c1, c2 = st.columns([2, 1])
         
         with c1:
             st.markdown('<div class="card-box">', unsafe_allow_html=True)
             st.markdown("### 📋 Lista de Afiliados")
             if not df_afiliados.empty:
-                # Prepara dados para tabela
                 display_data = []
                 for idx, row in df_afiliados.iterrows():
                     vendas_afiliado = df_vendas[df_vendas['cupom'] == row['cupom']] if not df_vendas.empty else pd.DataFrame()
                     total_vendas = len(vendas_afiliado)
                     comissao_total = vendas_afiliado['valor_comissao'].sum() if not vendas_afiliado.empty else 0
                     
-                    # Saques
                     saques_af = df_saques[(df_saques['cupom'] == row['cupom']) & (df_saques['status'] != 'Rejeitado')] if not df_saques.empty else pd.DataFrame()
                     pago = saques_af['valor'].sum() if not saques_af.empty else 0
                     saldo = comissao_total - pago
@@ -231,13 +256,12 @@ def admin_panel():
                 df_display = pd.DataFrame(display_data)
                 st.dataframe(df_display, hide_index=True, use_container_width=True)
                 
-                # Área de Exclusão
                 with st.expander("🗑️ Excluir Parceiro"):
                     c_del1, c_del2 = st.columns([3, 1])
-                    id_to_del = c_del1.number_input("ID do Parceiro para Excluir", min_value=0, step=1)
+                    id_to_del = c_del1.number_input("ID para Excluir", min_value=0, step=1)
                     if c_del2.button("Confirmar Exclusão"):
                         supabase.table("afiliados").delete().eq("id", id_to_del).execute()
-                        st.success("Parceiro removido.")
+                        st.success("Removido.")
                         time.sleep(1)
                         st.rerun()
             else:
@@ -259,7 +283,7 @@ def admin_panel():
                     except: st.error("Erro: Cupom já existe.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 3. BASE DE CLIENTES (ADD/DEL) ---
+    # --- 3. BASE DE CLIENTES ---
     elif nav == "Base de Clientes":
         st.title("Base de Clientes")
         
@@ -269,22 +293,17 @@ def admin_panel():
                 nome = c1.text_input("Nome do Cliente")
                 valor = c2.number_input("Valor do Plano", value=35.0)
                 
-                # Selectbox inteligente para Afiliados
                 lista_afiliados = ["Venda Direta (Sem Afiliado)"] + [f"{r['nome']} ({r['cupom']})" for i, r in df_afiliados.iterrows()] if not df_afiliados.empty else ["Venda Direta"]
                 afiliado_sel = c3.selectbox("Vincular a Parceiro", lista_afiliados)
                 
                 if st.form_submit_button("Registrar Cliente"):
                     cupom_final = None
                     comissao = 0.0
-                    
                     if "Sem Afiliado" not in afiliado_sel:
-                        # Extrai o cupom do texto "Nome (CUPOM)"
                         cupom_final = afiliado_sel.split("(")[-1].replace(")", "")
-                        comissao = 15.0 # Valor fixo ou lógica customizada
+                        comissao = 15.0 
                     
-                    # Expiração padrão 30 dias
                     data_exp = datetime.now() + timedelta(days=30)
-                    
                     supabase.table("vendas").insert({
                         "nome_cliente": nome,
                         "valor_plano": valor,
@@ -298,13 +317,11 @@ def admin_panel():
                     st.rerun()
 
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        # Filtro de busca
         search = st.text_input("🔍 Buscar Cliente por nome...", "")
         
         if not df_vendas.empty:
             df_show = df_vendas[df_vendas['nome_cliente'].str.contains(search, case=False, na=False)] if search else df_vendas
             
-            # Cabeçalho customizado
             cols = st.columns([1, 2, 2, 2, 2, 1])
             cols[0].markdown("**ID**")
             cols[1].markdown("**Cliente**")
@@ -325,7 +342,6 @@ def admin_panel():
                     c[3].write(row['data_expiracao'].strftime('%d/%m/%Y') if pd.notnull(row.get('data_expiracao')) else "-")
                     c[4].write(row['cupom'] if row['cupom'] else "Direta")
                     
-                    # Botão Excluir
                     if c[5].button("🗑️", key=f"del_cli_{row['id']}"):
                         supabase.table("vendas").delete().eq("id", row['id']).execute()
                         st.rerun()
@@ -334,22 +350,18 @@ def admin_panel():
             st.info("Sem clientes.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 4. FINANCEIRO (PAGAR) ---
+    # --- 4. FINANCEIRO ---
     elif nav == "Financeiro":
         st.title("Financeiro & Pagamentos")
-        
         c1, c2 = st.columns([2, 1])
         
         with c1:
             st.markdown('<div class="card-box">', unsafe_allow_html=True)
             st.subheader("🔔 Solicitações Pendentes")
             
-            # Filtra saques pendentes
             pendentes = df_saques[df_saques['status'] == 'Pendente'] if not df_saques.empty else pd.DataFrame()
-            
             if not pendentes.empty:
                 for i, row in pendentes.iterrows():
-                    # Info do parceiro
                     with st.container():
                         pc = st.columns([3, 1, 1])
                         pc[0].markdown(f"**{row['cupom']}** solicitou **R$ {row['valor']:.2f}**<br><span style='font-size:12px;color:grey'>Chave: {row.get('comprovante', '-')}</span>", unsafe_allow_html=True)
@@ -398,7 +410,6 @@ def affiliate_panel():
     if nav == "Dashboard":
         st.title("Meu Painel")
         
-        # Cálculos Financeiros
         vendas_ativas = minhas_vendas[minhas_vendas['status'] == 'Ativo'] if not minhas_vendas.empty else pd.DataFrame()
         comissao_total = vendas_ativas['valor_comissao'].sum() if not vendas_ativas.empty else 0
         
@@ -407,13 +418,11 @@ def affiliate_panel():
         ja_recebido = meus_saques['valor'].sum() if not meus_saques.empty else 0
         a_receber = comissao_total - ja_recebido
         
-        # Cards Métricas
         c1, c2, c3 = st.columns(3)
         with c1: card_metric("Clientes Ativos", len(vendas_ativas))
         with c2: card_metric("Saldo a Receber", f"R$ {a_receber:.2f}", "metric-highlight")
         with c3: card_metric("Total Ganho", f"R$ {comissao_total:.2f}")
         
-        # Área de Saque
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
         st.subheader("💸 Solicitar Saque")
         col_s1, col_s2 = st.columns([3, 1])
@@ -433,7 +442,6 @@ def affiliate_panel():
                     st.warning("Preencha valor e PIX.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Tabela de Clientes
         st.markdown("### Meus Clientes")
         if not minhas_vendas.empty:
             display_cli = []
@@ -458,9 +466,7 @@ def affiliate_panel():
         Aqui você encontra banners, textos prontos (copys) e vídeos para divulgar nas redes sociais.
         """)
         
-        # LINK DO DRIVE (Configurável ou Fixo)
-        link_drive = "https://drive.google.com/" # Coloque o link real aqui
-        
+        link_drive = "https://drive.google.com/" 
         st.link_button("📂 Acessar Pasta do Google Drive", link_drive, use_container_width=True)
         
         st.divider()
