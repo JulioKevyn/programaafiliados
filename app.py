@@ -20,7 +20,7 @@ CF_HEADERS = {
 }
 
 # ==============================================================================
-# ⚙️ VISUAL E ESTILO (ATUALIZADO E MODERNO)
+# ⚙️ VISUAL E ESTILO (RESPONSIVO E DARK MODE FRIENDLY)
 # ==============================================================================
 st.set_page_config(page_title="Olympikus Manager", page_icon="🚀", layout="wide")
 
@@ -29,74 +29,79 @@ st.markdown("""
     /* Importando fonte moderna */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
-    /* Reset Geral */
+    /* Reset Geral usando variáveis do Streamlit para Dark/Light Mode */
     .stApp { 
-        background-color: #F8FAFC; /* Fundo cinza bem claro/clean */
-        color: #1E293B; 
+        background-color: var(--background-color);
+        color: var(--text-color);
         font-family: 'Inter', sans-serif; 
     }
     
-    /* Sidebar mais elegante */
+    /* Sidebar Fixa (Sempre escura para contraste ou adaptável) 
+       Optei por manter escura pois dá um visual "App" mais profissional */
     [data-testid="stSidebar"] { 
-        background-color: #0F172A; /* Azul noturno profundo */
-        border-right: 1px solid #1E293B;
+        background-color: #0F172A; 
+        border-right: 1px solid rgba(255,255,255,0.1);
     }
     [data-testid="stSidebar"] * { 
-        color: #E2E8F0 !important; 
+        color: #F1F5F9 !important; 
     }
     
-    /* Cards brancos com sombra suave (SaaS Style) */
+    /* Cards Adaptáveis */
     .card-box {
-        background-color: white;
+        background-color: var(--secondary-background-color);
         padding: 24px;
         border-radius: 16px;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(128, 128, 128, 0.15); /* Borda sutil que funciona nos dois modos */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         margin-bottom: 24px;
         transition: transform 0.2s ease;
     }
     .card-box:hover {
-        border-color: #CBD5E1;
+        border-color: var(--primary-color);
     }
     
-    /* Login Container Específico */
+    /* Login Container Responsivo */
     .login-container {
         max-width: 450px;
+        width: 100%; /* Importante para mobile */
         margin: 0 auto;
-        background: white;
+        background-color: var(--secondary-background-color);
         padding: 40px;
         border-radius: 20px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
         border-top: 5px solid #2563EB;
     }
 
-    /* Métricas Bonitas */
+    /* Métricas Responsivas */
     .metric-container {
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
         padding: 20px;
-        background: white;
+        background-color: var(--secondary-background-color);
         border-radius: 12px;
         border-left: 4px solid #2563EB;
+        border: 1px solid rgba(128, 128, 128, 0.1);
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         height: 100%;
     }
     .metric-label { 
         font-size: 0.8rem; 
-        color: #64748B; 
+        color: var(--text-color); 
+        opacity: 0.7;
         text-transform: uppercase; 
         letter-spacing: 0.05em; 
         font-weight: 600;
     }
     .metric-value { 
-        font-size: 2rem; 
+        font-size: 1.8rem; 
         font-weight: 700; 
-        color: #0F172A; 
+        color: var(--text-color); 
         margin-top: 8px; 
     }
-    .metric-highlight { color: #2563EB; } 
+    /* Classe auxiliar para textos coloridos (azul) */
+    .metric-highlight { color: #3B82F6 !important; } 
     
     /* Botões Modernos */
     .stButton button {
@@ -107,46 +112,65 @@ st.markdown("""
         border: none;
         padding: 0.6rem 1rem;
         transition: all 0.2s;
+        width: 100%; /* Botões full width em mobile ficam melhores */
     }
     .stButton button:hover { 
         background-color: #1D4ED8; 
-        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
     }
     
-    /* Inputs mais limpos */
+    /* Inputs */
     .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput input {
         border-radius: 8px; 
-        border: 1px solid #CBD5E1;
+        border: 1px solid rgba(128, 128, 128, 0.3);
         padding: 10px;
-        color: #334155;
+        background-color: var(--secondary-background-color);
+        color: var(--text-color);
     }
     .stTextInput input:focus, .stNumberInput input:focus {
         border-color: #2563EB;
-        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
     }
     
-    /* Tabs customizadas */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: transparent;
+        flex-wrap: wrap; /* Permite quebrar linha no mobile */
     }
     .stTabs [data-baseweb="tab"] {
         height: 50px;
-        background-color: white;
+        background-color: var(--secondary-background-color);
         border-radius: 8px;
-        border: 1px solid #E2E8F0;
+        border: 1px solid rgba(128, 128, 128, 0.2);
         padding: 0 20px;
+        flex-grow: 1; /* Ocupa espaço disponível */
     }
     .stTabs [aria-selected="true"] {
-        background-color: #EFF6FF !important;
+        background-color: rgba(37, 99, 235, 0.1) !important;
         border-color: #2563EB !important;
         color: #2563EB !important;
         font-weight: bold;
     }
 
-    /* Remover padding excessivo do topo */
-    .block-container {
-        padding-top: 2rem;
+    /* AJUSTES MOBILE (Media Queries) */
+    @media (max-width: 768px) {
+        .login-container {
+            padding: 20px;
+            margin-top: 10px;
+        }
+        .card-box {
+            padding: 16px;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+        }
+        /* Esconder sidebar em mobile por padrão (Streamlit já faz isso, mas ajustamos o trigger se precisar) */
+        .block-container {
+            padding-top: 3rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -246,22 +270,22 @@ def gerar_relatorio_ia(df_afiliados, df_vendas):
         return f"Erro técnico na requisição: {e}"
 
 # ==============================================================================
-# 🔐 LOGIN (VISUAL NOVO)
+# 🔐 LOGIN (VISUAL NOVO & RESPONSIVO)
 # ==============================================================================
 if 'logged_in' not in st.session_state: 
     st.session_state.update({'logged_in': False, 'role': None, 'user': {}})
 
 def login_ui():
-    # Cria colunas para centralizar o card de login
-    c_void_l, c_main, c_void_r = st.columns([1, 2, 1])
+    # Centralização responsiva
+    c_void_l, c_main, c_void_r = st.columns([1, 6, 1]) # Ajustado para mobile ocupar mais espaço no meio
     
     with c_main:
         st.markdown("<br>", unsafe_allow_html=True)
-        # Início do Container Visual do Login
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
         
-        st.markdown("<h1 style='text-align: center; color: #1E293B; margin-bottom: 5px;'>Olympikus Manager</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748B; font-size: 0.9rem; margin-bottom: 25px;'>Gestão Inteligente & Performance</p>", unsafe_allow_html=True)
+        # Uso de estilos inline mínimos ou classes para garantir contraste
+        st.markdown("<h1 style='text-align: center; margin-bottom: 5px;'>Olympikus Manager</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; opacity: 0.7; font-size: 0.9rem; margin-bottom: 25px;'>Gestão Inteligente & Performance</p>", unsafe_allow_html=True)
         
         tab_parc, tab_adm = st.tabs(["Sou Parceiro", "Sou Admin"])
         
@@ -294,7 +318,7 @@ def login_ui():
                     st.error("Acesso negado.")
         
         st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #94A3B8; font-size: 0.75rem; margin-top: 20px;'>© 2025 Olympikus System v2.0</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; opacity: 0.5; font-size: 0.75rem; margin-top: 20px;'>© 2025 Olympikus System v2.0</p>", unsafe_allow_html=True)
 
 # ==============================================================================
 # 🛡️ ADMIN PANEL
@@ -362,7 +386,7 @@ def admin_panel():
             if 'last_report' in st.session_state:
                 st.markdown(st.session_state['last_report'])
             else:
-                st.markdown("<div style='color: gray; text-align: center; padding: 20px;'>O relatório de inteligência aparecerá aqui após clicar no botão ao lado.</div>", unsafe_allow_html=True)
+                st.markdown("<div style='opacity: 0.6; text-align: center; padding: 20px;'>O relatório de inteligência aparecerá aqui após clicar no botão ao lado.</div>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Gráfico
@@ -370,8 +394,15 @@ def admin_panel():
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
         if not df_filt.empty:
             daily = df_filt.groupby(df_filt['created_at'].dt.date)['valor_plano'].sum().reset_index()
+            # Ajuste Plotly para ser transparente e pegar a cor do fundo
             fig = px.bar(daily, x='created_at', y='valor_plano', color_discrete_sequence=['#2563EB'])
-            fig.update_layout(plot_bgcolor='white', margin=dict(t=10,l=10,r=10,b=10), height=350)
+            fig.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)', 
+                paper_bgcolor='rgba(0,0,0,0)',
+                font_color="gray",
+                margin=dict(t=10,l=10,r=10,b=10), 
+                height=350
+            )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Sem dados para exibir no gráfico.")
@@ -477,9 +508,9 @@ def admin_panel():
         if not df_vendas.empty:
             df_show = df_vendas[df_vendas['nome_cliente'].str.contains(search, case=False, na=False)] if search else df_vendas
             
-            # Header Customizado
+            # Header Customizado (Grid CSS para alinhamento)
             st.markdown("""
-            <div style="display: grid; grid-template-columns: 0.5fr 2fr 1fr 1fr 1fr 0.5fr; font-weight: bold; color: #64748B; padding: 10px 0; border-bottom: 2px solid #F1F5F9;">
+            <div style="display: grid; grid-template-columns: 0.5fr 2fr 1fr 1fr 1fr 0.5fr; font-weight: bold; opacity: 0.7; padding: 10px 0; border-bottom: 2px solid rgba(128,128,128,0.2);">
                 <div>ID</div><div>CLIENTE</div><div>STATUS</div><div>VENCIMENTO</div><div>AFILIADO</div><div>AÇÃO</div>
             </div>
             """, unsafe_allow_html=True)
@@ -499,7 +530,7 @@ def admin_panel():
                 if c[5].button("🗑️", key=f"del_cli_{row['id']}"):
                     supabase.table("vendas").delete().eq("id", row['id']).execute()
                     st.rerun()
-                st.markdown("<hr style='margin: 5px 0; border-color: #F8FAFC;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 5px 0; border-color: rgba(128,128,128,0.1);'>", unsafe_allow_html=True)
         else: st.info("Sem clientes.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -517,12 +548,12 @@ def admin_panel():
                 for i, row in pendentes.iterrows():
                     with st.container():
                         st.markdown(f"""
-                        <div style="background: #FFF; padding: 15px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 10px;">
+                        <div style="background: var(--secondary-background-color); padding: 15px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); margin-bottom: 10px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <h4 style="margin:0; color: #0F172A;">{row['cupom']}</h4>
-                                    <div style="color: #64748B; font-size: 0.9rem;">Solicitou: <b>R$ {row['valor']:.2f}</b></div>
-                                    <div style="color: #94A3B8; font-size: 0.8rem;">Chave: {row.get('comprovante', '-')}</div>
+                                    <h4 style="margin:0;">{row['cupom']}</h4>
+                                    <div style="opacity: 0.8; font-size: 0.9rem;">Solicitou: <b>R$ {row['valor']:.2f}</b></div>
+                                    <div style="opacity: 0.6; font-size: 0.8rem;">Chave: {row.get('comprovante', '-')}</div>
                                 </div>
                             </div>
                         </div>
