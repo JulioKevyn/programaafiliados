@@ -13,7 +13,7 @@ st.set_page_config(page_title="Nexus Manager", page_icon="🚀", layout="wide")
 
 # URL do Webhook do n8n (Aquele que criamos para a Auditoria IA)
 # Chefe, troque pelo seu link de produção do n8n quando estiver pronto
-N8N_WEBHOOK_URL = "https://seu-n8n.com/webhook/auditoria-saas"
+N8N_WEBHOOK_URL = "https://olympikusdevs.app.n8n.cloud/webhook-test/auditoria-saas"
 
 st.markdown("""
 <style>
